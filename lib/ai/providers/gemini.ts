@@ -85,13 +85,34 @@ export class GeminiProvider implements AIProvider {
             generationConfig,
           })
           const result = await model.generateContent(userPrompt)
-          const meta = result.response.usageMetadata
+
+          // A truncated response is not a transient fault and must not be
+          // retried or fallen through — it is a budget that was set too low,
+          // and every attempt will truncate in the same place. Saying so here
+          // turns a baffling "response was not valid JSON" into the actual
+          // problem. Reasoning tokens draw on this same budget, so a thinking
+          // model needs far more headroom than the visible answer suggests.
+          const finish = result.response.candidates?.[0]?.finishReason
+          if (finish === 'MAX_TOKENS') {
+            throw new Error(
+              `[ai] ${modelName} hit the output token cap before finishing. Raise maxTokens or send fewer items per call.`,
+            )
+          }
+
+          const meta = result.response.usageMetadata as
+            | { promptTokenCount?: number; candidatesTokenCount?: number; thoughtsTokenCount?: number }
+            | undefined
           return {
             text: result.response.text(),
             usage: {
               calls: 1,
               inputTokens: meta?.promptTokenCount ?? 0,
-              outputTokens: meta?.candidatesTokenCount ?? 0,
+              // Reasoning tokens are billed as output but are NOT included in
+              // candidatesTokenCount — a 47-token answer here carried 366
+              // thinking tokens. Counting only the visible ones understated
+              // the run cost by roughly eight times, and this project puts
+              // that figure on the scorecard.
+              outputTokens: (meta?.candidatesTokenCount ?? 0) + (meta?.thoughtsTokenCount ?? 0),
             },
           }
         })
@@ -99,7 +120,17 @@ export class GeminiProvider implements AIProvider {
         lastError = error
         const message = error instanceof Error ? error.message : String(error)
         if (isDailyQuotaError(message)) {
-          console.warn(`[ai] ${modelName} daily quota spent, falling through`)
+          console.warn(`[ai] ${modelName}: daily quota spent, trying the next model`)
+          continue
+        }
+        if (isTransient(message)) {
+          // withRetry has already backed off three times. A model still
+          // overloaded after that is not recovering inside this request — but
+          // the next model in the chain has its own capacity, and a fallback
+          // chain we refuse to walk is the same as no chain at all. This is
+          // the difference between a 503 on one model taking down the feature
+          // and it costing a few hundred milliseconds.
+          console.warn(`[ai] ${modelName}: still unavailable after retries, trying the next model`)
           continue
         }
         throw error

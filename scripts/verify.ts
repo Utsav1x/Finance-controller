@@ -136,6 +136,56 @@ async function main() {
     )
   }
 
+  // ── 5b. Hard mode ─────────────────────────────────────────────────────────
+  // Degraded statements are what give tier 4 anything to do. Two things must
+  // hold: the rules must hand real work upward, and they must not invent
+  // matches to avoid doing so. The second is the one that broke — an unbounded
+  // subset-sum happily assembled nine "split payouts" out of unrelated credits
+  // the moment the candidate pool grew.
+  console.log('\n  HARD MODE (45% of statements unusable)')
+  {
+    const dataset = generateDataset({ seed: 42, orderCount: 220, referenceLoss: 0.45 })
+    const result = await reconcile(dataset, { tolerances: DEFAULT_TOLERANCES, adjudicator: null })
+    const m = result.metrics
+    const queued = result.exceptions.filter((e) => e.code === 'LLM_UNAVAILABLE').length
+
+    check(
+      'degraded data reaches the adjudicator',
+      queued > 0,
+      `${queued} batches queued for tier 4`,
+    )
+    check(
+      'rules keep precision without a model',
+      m.overall.precision === 1,
+      `${pct(m.overall.precision)} · ${m.resolution.falsePositives} FP`,
+    )
+    check(
+      'no fabricated splits from summing coincidences',
+      m.resolution.falsePositives === 0,
+      `tier3 resolved ${m.tierBreakdown.tier3 ?? 0}`,
+    )
+    check(
+      'genuine split payouts still recovered',
+      m.plantedRecall.SPLIT_PAYOUT.handled === m.plantedRecall.SPLIT_PAYOUT.planted,
+      `${m.plantedRecall.SPLIT_PAYOUT.handled}/${m.plantedRecall.SPLIT_PAYOUT.planted}`,
+    )
+    check(
+      'decoy credits are rejected, not matched',
+      m.plantedRecall.ORPHAN_CREDIT.handled === m.plantedRecall.ORPHAN_CREDIT.planted,
+      `${m.plantedRecall.ORPHAN_CREDIT.handled}/${m.plantedRecall.ORPHAN_CREDIT.planted}`,
+    )
+
+    const clean = await reconcile(generateDataset({ seed: 42, orderCount: 220 }), {
+      tolerances: DEFAULT_TOLERANCES,
+      adjudicator: null,
+    })
+    check(
+      'clean data is unchanged by the feature',
+      clean.metrics.overall.recall === 1 && clean.metrics.overall.precision === 1,
+      `recall ${pct(clean.metrics.overall.recall)} at referenceLoss 0`,
+    )
+  }
+
   // ── 6. The adversarial check ──────────────────────────────────────────────
   // If wide-open tolerances cannot produce a false positive, the grader is not
   // grading and every figure above is decoration.

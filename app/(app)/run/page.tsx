@@ -66,6 +66,7 @@ export default function RunConsolePage() {
   const [days, setDays] = useState(20)
   const [seed, setSeed] = useState(42)
   const [settlementsPerDay, setSettlementsPerDay] = useState(3)
+  const [referenceLoss, setReferenceLoss] = useState(0)
   const [useAdjudicator, setUseAdjudicator] = useState(true)
 
   const [running, setRunning] = useState(false)
@@ -88,7 +89,14 @@ export default function RunConsolePage() {
       const response = await fetch('/api/runs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderCount, seed, settlementsPerDay, days, useAdjudicator }),
+        body: JSON.stringify({
+          orderCount,
+          seed,
+          settlementsPerDay,
+          days,
+          referenceLoss,
+          useAdjudicator,
+        }),
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error ?? 'the run failed')
@@ -200,6 +208,42 @@ export default function RunConsolePage() {
                   onChange={(e) => setSettlementsPerDay(Number(e.target.value))}
                 />
               </Field>
+            </div>
+
+            <div>
+              <h2 className="text-sm font-semibold">Statement quality</h2>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                How much of the bank export arrives unusable — the reference stripped and the
+                payout posted late. Clean data is fully resolved by the rules; degrading it is what
+                gives the adjudicator anything to do.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {[
+                  { label: 'Clean', value: 0, note: 'rules resolve everything' },
+                  { label: 'Degraded', value: 0.25, note: 'a quarter unusable' },
+                  { label: 'Hard', value: 0.45, note: 'tier 4 earns its keep' },
+                ].map((p) => (
+                  <button
+                    key={p.label}
+                    type="button"
+                    onClick={() => setReferenceLoss(p.value)}
+                    title={p.note}
+                    className={cn(
+                      'rounded-lg border px-2.5 py-1 text-xs transition-colors',
+                      referenceLoss === p.value
+                        ? 'border-accent/40 bg-accent/15 text-foreground'
+                        : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground',
+                    )}
+                  >
+                    {p.label}
+                    {p.value > 0 && (
+                      <span className="amount ml-1.5 text-muted-foreground">
+                        {p.value * 100}%
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <button

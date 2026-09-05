@@ -42,6 +42,7 @@ export default function DataStudioPage() {
   const [orderCount, setOrderCount] = useState(220)
   const [days, setDays] = useState(20)
   const [settlementsPerDay, setSettlementsPerDay] = useState(3)
+  const [referenceLoss, setReferenceLoss] = useState(0)
 
   const [preview, setPreview] = useState<Preview | null>(null)
   const [loading, setLoading] = useState(true)
@@ -55,13 +56,14 @@ export default function DataStudioPage() {
         orderCount: String(orderCount),
         days: String(days),
         settlementsPerDay: String(settlementsPerDay),
+        referenceLoss: String(referenceLoss),
       })
       const response = await fetch(`/api/data/preview?${params}`)
       if (response.ok) setPreview(await response.json())
     } finally {
       setLoading(false)
     }
-  }, [seed, orderCount, days, settlementsPerDay])
+  }, [seed, orderCount, days, settlementsPerDay, referenceLoss])
 
   useEffect(() => {
     const timer = setTimeout(load, 250)
@@ -74,7 +76,14 @@ export default function DataStudioPage() {
       const response = await fetch('/api/runs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ seed, orderCount, days, settlementsPerDay, useAdjudicator: true }),
+        body: JSON.stringify({
+          seed,
+          orderCount,
+          days,
+          settlementsPerDay,
+          referenceLoss,
+          useAdjudicator: true,
+        }),
       })
       const data = await response.json()
       if (response.ok) router.push(`/runs/${data.runId}`)
@@ -139,6 +148,37 @@ export default function DataStudioPage() {
                   />
                 </label>
               ))}
+            </div>
+
+            <div className="border-t border-border/60 pt-4">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Statement quality
+              </p>
+              <div className="mt-2.5 flex flex-wrap gap-2">
+                {[
+                  { label: 'Clean', value: 0 },
+                  { label: 'Degraded', value: 0.25 },
+                  { label: 'Hard', value: 0.45 },
+                ].map((p) => (
+                  <button
+                    key={p.label}
+                    type="button"
+                    onClick={() => setReferenceLoss(p.value)}
+                    className={cn(
+                      'rounded-lg border px-2.5 py-1 text-xs transition-colors',
+                      referenceLoss === p.value
+                        ? 'border-accent/40 bg-accent/15 text-foreground'
+                        : 'border-border text-muted-foreground hover:bg-muted hover:text-foreground',
+                    )}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                Degrading the export strips the reference and posts the payout late, which is what
+                leaves a case with no deterministic handle at all.
+              </p>
             </div>
 
             <p className="border-t border-border/60 pt-3 text-xs leading-relaxed text-muted-foreground">

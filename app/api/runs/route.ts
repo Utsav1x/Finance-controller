@@ -15,6 +15,8 @@ const StartSchema = z.object({
   seed: z.number().int().min(0).max(2_147_483_647).default(42),
   settlementsPerDay: z.number().int().min(1).max(8).default(3),
   days: z.number().int().min(5).max(90).default(20),
+  /** Hard mode: fraction of payouts stripped of their reference and delayed past the window. */
+  referenceLoss: z.number().min(0).max(0.9).default(0),
   label: z.string().max(80).optional(),
   useAdjudicator: z.boolean().default(true),
   tolerances: z.record(z.string(), z.number()).optional(),
@@ -44,6 +46,7 @@ export async function POST(request: Request) {
     orderCount: input.orderCount,
     settlementsPerDay: input.settlementsPerDay,
     days: input.days,
+    referenceLoss: input.referenceLoss,
   })
 
   // Saved rules are the baseline; anything sent with the request overrides them
@@ -57,7 +60,14 @@ export async function POST(request: Request) {
 
   const label =
     input.label?.trim() ||
-    `${input.orderCount} orders · seed ${input.seed}${adjudicator ? '' : ' · rules only'}`
+    [
+      `${input.orderCount} orders`,
+      `seed ${input.seed}`,
+      input.referenceLoss > 0 ? `${Math.round(input.referenceLoss * 100)}% ref loss` : null,
+      adjudicator ? null : 'rules only',
+    ]
+      .filter(Boolean)
+      .join(' · ')
 
   saveRun(result, dataset, label)
 

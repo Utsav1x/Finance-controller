@@ -98,6 +98,23 @@ export interface GeneratorConfig {
    * realistic and a fairer test.
    */
   settlementsPerDay: number
+  /**
+   * Fraction of payouts whose bank reference is lost entirely in the export,
+   * and which are then delayed past the date window — "hard mode".
+   *
+   * This exists because a clean dataset is resolved completely by the
+   * deterministic tiers, which makes the adjudicator look like decoration. The
+   * combination is what makes a case genuinely un-ruleable: tier 1 has no
+   * reference to match, tier 2 rejects the credit on date, and tier 3 scores it
+   * around 0.49 against a 0.82 bar. What reaches tier 4 is a credit whose
+   * amount matches exactly and whose only remaining evidence is the narration
+   * text — `RAZORPAY ... SETTLEMENT` against a decoy's `PAYU ... PAYOUT`.
+   *
+   * That is a judgement a numeric rule cannot make and a reader makes
+   * instantly, which is the honest case for having a model in the loop at all.
+   * At 0 (the default) the dataset is unchanged.
+   */
+  referenceLoss: number
   /** Contracted fee, basis points of gross. */
   feeBps: number
   /** GST on the fee. */
@@ -112,6 +129,7 @@ export const DEFAULT_GENERATOR_CONFIG: GeneratorConfig = {
   startDay: '2026-08-03',
   days: 20,
   settlementsPerDay: 3,
+  referenceLoss: 0,
   feeBps: 200,
   feeTaxRate: 0.18,
 }
@@ -603,6 +621,42 @@ export function generateDataset(config: Partial<GeneratorConfig> = {}): Dataset 
       truthSettlementId: null,
       plantedClass: 'ORPHAN_CREDIT',
     })
+  }
+
+  // REFERENCE LOSS — hard mode. Runs last so it cannot starve the pools the
+  // other classes draw from; whatever payouts are still clean are fair game.
+  if (cfg.referenceLoss > 0) {
+    const pool = settlementDrafts().filter((d) => d.plantedClass === null)
+    const wanted = Math.round(settlementDrafts().length * cfg.referenceLoss)
+
+    for (const idx of rng.sample(pool.length, Math.min(wanted, pool.length))) {
+      const d = pool[idx]
+      d.narration = d.narration.replace(/UTR\d+/, 'REF NOT PROVIDED')
+      d.plantedClass = 'NARRATION_NOISE'
+
+      // Losing the reference alone is not enough to defeat the rules: the
+      // amount still matches exactly and tier 2 picks it up on amount+date.
+      // Pushing it past the window as well is what removes the last
+      // deterministic handle and forces a judgement call.
+      if (rng.float() < 0.65) {
+        d.valueDate = addBusinessDays(d.valueDate, rng.int(4, 7))
+      }
+
+      // A plausible impostor for the credit we just made hard to identify:
+      // same day, similar size, and a narration naming a different gateway.
+      // Rejecting this is the adjudicator's most valuable output, and the
+      // engine has nothing numeric left to reject it with.
+      if (rng.float() < 0.5) {
+        drafts.push({
+          valueDate: d.valueDate,
+          narration: `NEFT CR PAYU PAYMENTS PVT LTD ${pad(rng.int(0, 999999), 6)} PAYOUT`,
+          creditPaise: Math.max(1, Math.round(d.creditPaise * (1 + (rng.float() * 0.04 - 0.02)))),
+          debitPaise: 0,
+          truthSettlementId: null,
+          plantedClass: 'ORPHAN_CREDIT',
+        })
+      }
+    }
   }
 
   // ── Phase G — date, number and balance the statement ──────────────────────

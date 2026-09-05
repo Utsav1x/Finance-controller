@@ -19,19 +19,23 @@ const args = process.argv.slice(2)
 const orderCount = Number(args.find((a) => /^\d+$/.test(a)) ?? 220)
 const reckless = args.includes('reckless')
 const seed = Number(args.find((a) => a.startsWith('seed='))?.split('=')[1] ?? 42)
+/** `ref=0.4` — hard mode. Fraction of payouts stripped of their reference and delayed. */
+const referenceLoss = Number(args.find((a) => a.startsWith('ref='))?.split('=')[1] ?? 0)
 
 const pct = (n: number) => `${(n * 100).toFixed(1)}%`
 const pad = (s: string, n: number) => s.padEnd(n)
 
 async function main() {
-  const dataset = generateDataset({ seed, orderCount })
+  const dataset = generateDataset({ seed, orderCount, referenceLoss })
   const tolerances = reckless ? RECKLESS_TOLERANCES : DEFAULT_TOLERANCES
 
   const result = await reconcile(dataset, { tolerances, adjudicator: null })
   const m = result.metrics
 
   console.log('')
-  console.log(`  Ledgerly bench — seed ${seed}, ${orderCount} orders${reckless ? ', RECKLESS tolerances' : ''}`)
+  console.log(
+    `  Ledgerly bench — seed ${seed}, ${orderCount} orders${reckless ? ', RECKLESS tolerances' : ''}${referenceLoss > 0 ? `, ${(referenceLoss * 100).toFixed(0)}% reference loss` : ''}`,
+  )
   console.log(`  ${'─'.repeat(66)}`)
   console.log(`  sources        ${dataset.orders.length} orders · ${dataset.settlements.length} settlement lines · ${dataset.bankLines.length} bank lines`)
   console.log(`  records        ${m.throughput.records} in ${formatDuration(m.throughput.wallMs)}  (${m.throughput.recordsPerSecond.toLocaleString()}/s)`)

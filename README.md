@@ -103,9 +103,43 @@ Each tier only sees what the one before could not resolve. That ordering is what
 auditable: most matches are explained by a rule you can read, and the scorecard's **tier
 attribution** shows exactly how much work the model actually did.
 
-On the default dataset the deterministic tiers resolve everything (`tier1 253 · tier2 5 · tier3 6`)
-and **zero model calls are made**. That is reported rather than hidden — an AI feature that isn't
+On a clean dataset the deterministic tiers resolve everything (`tier1 253 · tier2 5 · tier3 6`) and
+**zero model calls are made**. That is reported rather than hidden — an AI feature that isn't
 needed on easy data should say so.
+
+### When the model earns its keep
+
+Real bank exports are not clean. The **statement quality** control degrades them the way a bank
+actually does: the reference is stripped from the narration *and* the payout posts late. That
+combination removes every deterministic handle — tier 1 has no reference, tier 2 rejects on date,
+tier 3 scores ~0.49 against a 0.82 bar — leaving a credit whose amount matches exactly and whose
+only remaining evidence is the narration text.
+
+```bash
+pnpm bench -- 220 ref=0.45     # 45% of statements unusable
+```
+
+| seed 42, 45% reference loss | rules only | + adjudicator |
+|---|---|---|
+| recall | 94.7% | **98.5%** |
+| missed | 14 | **4** |
+| precision | 100% | **100%** |
+| false positives | 0 | **0** |
+| cost | — | 4 calls · 9,208 tokens · **$0.0016** |
+
+Ten records recovered, no precision given up. What the model actually said:
+
+> `SET-0009 → BNK-00033` (0.88) — *"Exact paise match to Razorpay settlement credit despite delayed
+> posting and missing reference text."*
+
+And the more valuable half — refusing a decoy sized within 2% of a real payout, on the same day:
+
+> `SET-0041` — *"Significant delta of ₹315.99 with no reference support indicates an unrelated
+> credit; settlement payout remains missing."*
+
+That is a judgement no numeric rule can make and a reader makes instantly. It is also the honest
+case for having a model in the loop at all: not because it matches faster, but because it can read
+that one narration names a different gateway.
 
 ### The adjudicator's constraints
 

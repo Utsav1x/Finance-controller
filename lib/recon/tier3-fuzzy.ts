@@ -247,9 +247,29 @@ function findSplit(
 
   let found: NormalizedBankLine[] | null = null
 
+  /**
+   * At least one leg must actually point at this batch.
+   *
+   * Summing to the right total is not evidence on its own — with a dozen
+   * candidates and a tolerance band, some combination will always add up, and
+   * the search will find it. Under degraded data this produced nine false
+   * positives in a single run, every one of them a set of unrelated credits
+   * that happened to total correctly.
+   *
+   * A real split payout is not anonymous: banks put the reference on at least
+   * the first leg and drop it from the continuation. Requiring one supported
+   * leg keeps every genuine split and removes the arithmetic coincidences.
+   */
+  const hasReferenceSupport = (legs: NormalizedBankLine[]) =>
+    legs.some((leg) => referenceSupport(leg.facts, batch.utr) > 0)
+
   const walk = (start: number, chosen: NormalizedBankLine[], sum: number) => {
     if (found) return
-    if (chosen.length >= 2 && Math.abs(sum - batch.netPaise) <= tolerance) {
+    if (
+      chosen.length >= 2 &&
+      Math.abs(sum - batch.netPaise) <= tolerance &&
+      hasReferenceSupport(chosen)
+    ) {
       found = chosen.slice()
       return
     }

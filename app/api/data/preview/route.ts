@@ -21,6 +21,7 @@ export async function GET(request: Request) {
     orderCount: clamp(Number(params.get('orderCount')), 10, 5000, 220),
     days: clamp(Number(params.get('days')), 5, 90, 20),
     settlementsPerDay: clamp(Number(params.get('settlementsPerDay')), 1, 8, 3),
+    referenceLoss: clamp(Number(params.get('referenceLoss')), 0, 0.9, 0),
   })
 
   const batches = buildBatches(dataset.settlements)

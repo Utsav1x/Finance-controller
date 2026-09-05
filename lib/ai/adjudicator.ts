@@ -55,7 +55,9 @@ Returning decision "no_match" is correct and useful. The unresolved item goes to
 Return ONLY JSON of this shape:
 {"verdicts":[{"settlementId":"SET-0001","decision":"match"|"no_match","matchedIds":["BNK-00012"],"confidence":0.0-1.0,"reasonCode":"SPLIT_PAYOUT"|"TIMING_GAP"|"ROUNDING"|"NARRATION_NOISE"|"ORPHAN_CREDIT"|"MISSING_CREDIT"|"NO_CANDIDATE","rationale":"one sentence a finance reviewer can act on"}]}
 
-matchedIds must be [] when decision is "no_match". confidence is your own belief, not the engine's score.`
+matchedIds must be [] when decision is "no_match". confidence is your own belief, not the engine's score.
+
+Keep every rationale under 25 words. Return one verdict per batch and nothing else — no preamble, no commentary between objects.`
 
 const VerdictSchema = z.object({
   settlementId: z.string(),
@@ -124,21 +126,36 @@ export function createAdjudicator(): Adjudicator | null {
 
       // Batched into groups rather than one call per record. Each prompt repeats
       // ~600 tokens of instructions, so one call per batch would spend most of
-      // the quota re-reading the same rules.
-      const GROUP_SIZE = 6
+      // the quota re-reading the same rules. Four rather than six: the output
+      // budget is shared with the model's reasoning tokens, and a group large
+      // enough to truncate loses every verdict in it.
+      const GROUP_SIZE = 4
       for (let i = 0; i < requests.length; i += GROUP_SIZE) {
         const group = requests.slice(i, i + GROUP_SIZE)
         const prompt = group.map(renderRequest).join('\n\n')
 
-        const { data, usage: callUsage } = await provider.generateJSON<unknown>(
-          SYSTEM_PROMPT,
-          prompt,
-          { temperature: 0, maxTokens: 2048 },
-        )
-
-        usage.calls += callUsage.calls
-        usage.inputTokens += callUsage.inputTokens
-        usage.outputTokens += callUsage.outputTokens
+        let data: unknown
+        try {
+          const call = await provider.generateJSON<unknown>(SYSTEM_PROMPT, prompt, {
+            temperature: 0,
+            maxTokens: 8192,
+          })
+          data = call.data
+          usage.calls += call.usage.calls
+          usage.inputTokens += call.usage.inputTokens
+          usage.outputTokens += call.usage.outputTokens
+        } catch (error) {
+          // One bad group must not cost the others their verdicts. An earlier
+          // version let a single truncated response throw out of the loop and
+          // lose all sixteen batches, which then reported as "the adjudicator
+          // was unavailable" — describing a total outage when fifteen of the
+          // sixteen would have been answered correctly.
+          console.warn(
+            `[adjudicator] group ${i / GROUP_SIZE + 1} failed, its batches go to the exception list:`,
+            error instanceof Error ? error.message : String(error),
+          )
+          continue
+        }
 
         const parsed = ResponseSchema.safeParse(data)
         if (!parsed.success) {

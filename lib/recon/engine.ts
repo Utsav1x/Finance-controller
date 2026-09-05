@@ -325,6 +325,17 @@ export async function reconcile(
     )
   }
 
+  // A batch an earlier tier gave up on may have been rescued by a later one —
+  // tier 2 records AMBIGUOUS and then lets tier 3 keep working on the same
+  // batch. Without this the record carries both a match and an exception, and
+  // the exception count is inflated by exactly the cases that were recovered.
+  // Latent on clean data, immediate as soon as references start going missing.
+  for (let i = exceptions.length - 1; i >= 0; i--) {
+    if (exceptions[i].level === 'L2' && resolvedBatches.has(exceptions[i].recordId)) {
+      exceptions.splice(i, 1)
+    }
+  }
+
   // ── Sweep: everything nobody claimed ──────────────────────────────────────
   for (const batch of batches) {
     if (resolvedBatches.has(batch.settlementId)) continue
