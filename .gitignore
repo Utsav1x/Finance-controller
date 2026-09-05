@@ -1,0 +1,22 @@
+# Environment variables
+.env*.local
+
+# Common ignores
+node_modules
+.next/
+.DS_Store
+
+# Build caches — regenerated on every compile, pure diff noise when tracked
+tsconfig.tsbuildinfo
+
+# The SQLite database and its write-ahead sidecars are rebuilt by `pnpm seed`
+# from a seed number, so the file itself carries no information worth tracking.
+ledgerly.db
+ledgerly.db-shm
+ledgerly.db-wal
+
+# Generated synthetic sources. Reproducible from the seed in the run record.
+/data/*.csv
+
+# Local editor/tooling config
+.claude/

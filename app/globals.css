@@ -1,0 +1,182 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/*
+  Ledgerly — dark navy / blue futuristic SaaS palette, shared with the rest of
+  the suite. The app is dark-only; :root and .dark carry the same tokens.
+
+  The three semantic colours already carry the reconciliation states, so the
+  engine's vocabulary and the palette's are the same thing:
+    success     → matched     (resolved, no human needed)
+    warning     → review      (matched but below the auto-accept bar)
+    destructive → exception   (unresolved — the honest list)
+*/
+:root,
+.dark {
+  color-scheme: dark;
+
+  --background: oklch(0.17 0.028 264);
+  --foreground: oklch(0.96 0.006 264);
+
+  --card: oklch(0.21 0.03 264);
+  --card-foreground: oklch(0.96 0.006 264);
+
+  --popover: oklch(0.2 0.03 264);
+  --popover-foreground: oklch(0.96 0.006 264);
+
+  --primary: oklch(0.62 0.19 258);
+  --primary-foreground: oklch(0.98 0.01 264);
+
+  --secondary: oklch(0.26 0.035 264);
+  --secondary-foreground: oklch(0.96 0.006 264);
+
+  --muted: oklch(0.24 0.03 264);
+  --muted-foreground: oklch(0.7 0.03 264);
+
+  --accent: oklch(0.7 0.15 215);
+  --accent-foreground: oklch(0.18 0.03 264);
+
+  --destructive: oklch(0.64 0.2 20);
+  --success: oklch(0.7 0.15 160);
+  --success-foreground: oklch(0.16 0.03 264);
+  --warning: oklch(0.78 0.15 75);
+  --warning-foreground: oklch(0.16 0.03 264);
+
+  --border: oklch(0.98 0 0 / 8%);
+  --input: oklch(0.98 0 0 / 12%);
+  --ring: oklch(0.62 0.19 258);
+
+  --chart-1: oklch(0.62 0.19 258);
+  --chart-2: oklch(0.7 0.15 215);
+  --chart-3: oklch(0.7 0.15 160);
+  --chart-4: oklch(0.78 0.15 75);
+  --chart-5: oklch(0.65 0.2 300);
+
+  --radius: 0.75rem;
+
+  --sidebar: oklch(0.19 0.03 264);
+  --sidebar-foreground: oklch(0.96 0.006 264);
+  --sidebar-primary: oklch(0.62 0.19 258);
+  --sidebar-primary-foreground: oklch(0.98 0.01 264);
+  --sidebar-accent: oklch(0.26 0.035 264);
+  --sidebar-accent-foreground: oklch(0.96 0.006 264);
+  --sidebar-border: oklch(0.98 0 0 / 8%);
+  --sidebar-ring: oklch(0.62 0.19 258);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    background-image:
+      radial-gradient(60rem 40rem at 80% -10%, oklch(0.62 0.19 258 / 0.12), transparent 60%),
+      radial-gradient(50rem 40rem at 0% 0%, oklch(0.7 0.15 215 / 0.08), transparent 55%);
+    background-attachment: fixed;
+  }
+}
+
+@layer utilities {
+  /* Subtle glassy card surface with a soft blue inner light */
+  .glow-border {
+    box-shadow:
+      0 0 0 1px oklch(0.62 0.19 258 / 0.15),
+      0 0 40px -12px oklch(0.62 0.19 258 / 0.45);
+  }
+  .text-gradient {
+    background: linear-gradient(
+      100deg,
+      oklch(0.96 0.006 264) 0%,
+      oklch(0.72 0.16 250) 55%,
+      oklch(0.75 0.14 210) 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, oklch(0.98 0 0 / 0.04) 1px, transparent 1px),
+      linear-gradient(to bottom, oklch(0.98 0 0 / 0.04) 1px, transparent 1px);
+    background-size: 44px 44px;
+  }
+
+  /*
+    Every amount in the product uses this. Proportional digits make a column of
+    figures ragged, which is exactly the thing a finance reviewer scans down —
+    so money is mono, lining, tabular, everywhere, without exception.
+  */
+  .amount {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums lining-nums;
+    letter-spacing: -0.01em;
+  }
+
+  @keyframes float-slow {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+  .animate-float-slow {
+    animation: float-slow 6s ease-in-out infinite;
+  }
+  @keyframes pulse-ring {
+    0% { transform: scale(0.9); opacity: 0.7; }
+    70% { transform: scale(1.3); opacity: 0; }
+    100% { opacity: 0; }
+  }
+  .animate-pulse-ring {
+    animation: pulse-ring 2.4s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+  }
+}

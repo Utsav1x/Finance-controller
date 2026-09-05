@@ -1,0 +1,6 @@
+allowBuilds:
+  # tsx bundles esbuild, whose install script links the platform binary.
+  esbuild: true
+minimumReleaseAgeExclude:
+  - '@next/*'
+  - next
