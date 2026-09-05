@@ -306,7 +306,7 @@ export function toExceptions(
       reason:
         c.refScore === 0
           ? 'no recognisable reference and outside the amount band'
-          : `scored ${c.score.toFixed(2)}, below the ${'auto-accept'} bar`,
+          : `scored ${c.score.toFixed(2)}, below the auto-accept bar`,
       deltaPaise: c.deltaPaise,
       dayGap: c.dayGap,
       score: Number(c.score.toFixed(3)),

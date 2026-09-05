@@ -211,17 +211,36 @@ async function main() {
   {
     const dataset = generateDataset({ seed: 3, orderCount: 220 })
     const result = await reconcile(dataset, { tolerances: DEFAULT_TOLERANCES, adjudicator: null })
-    const accounted =
-      result.metrics.overall.truePositives +
-      result.metrics.overall.falseNegatives -
-      result.metrics.overall.truePositives
 
     check('run completes with no provider', result.metrics.throughput.records > 0, `${result.matches.length} matches`)
     check('no model calls were made', result.metrics.throughput.llmCalls === 0, '0 calls, $0.00')
+
+    // The real invariant: every payout and every incoming credit must end up in
+    // a match or in an exception. "Nothing is silently dropped" is the central
+    // claim this project makes, so it needs a check that can actually fail —
+    // the one this replaced computed TP + FN - TP and asserted it equalled FN,
+    // which is true of any two numbers and tested nothing at all.
+    const accountedFor = new Set<string>()
+    for (const m of result.matches) {
+      accountedFor.add(m.leftId)
+      accountedFor.add(m.rightId)
+    }
+    for (const e of result.exceptions) accountedFor.add(e.recordId)
+
+    const batchIds = [...new Set(dataset.settlements.map((s) => s.settlementId))]
+    const creditIds = dataset.bankLines.filter((l) => l.creditPaise > 0).map((l) => l.lineId)
+    const orphanedBatches = batchIds.filter((id) => !accountedFor.has(id))
+    const orphanedCredits = creditIds.filter((id) => !accountedFor.has(id))
+
     check(
-      'nothing was silently dropped',
-      accounted === result.metrics.overall.falseNegatives,
-      `${result.exceptions.length} exceptions reported`,
+      'every payout is matched or excepted',
+      orphanedBatches.length === 0,
+      `${batchIds.length} payouts, ${orphanedBatches.length} unaccounted`,
+    )
+    check(
+      'every bank credit is matched or excepted',
+      orphanedCredits.length === 0,
+      `${creditIds.length} credits, ${orphanedCredits.length} unaccounted`,
     )
   }
 

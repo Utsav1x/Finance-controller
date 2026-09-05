@@ -95,11 +95,7 @@ export default async function CashPage() {
     }
   })
 
-  const allValues = [
-    ...history.map(([, n]) => closing),
-    ...projection.flatMap((p) => [p.low, p.high]),
-    closing,
-  ]
+  const allValues = [...projection.flatMap((p) => [p.low, p.high]), closing]
   const min = Math.min(...allValues)
   const max = Math.max(...allValues)
   const span = max - min || 1

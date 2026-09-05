@@ -310,14 +310,10 @@ export async function reconcile(
       `${usage.calls} call(s) · ${budgeted.length} batches judged · ${overflow.length} over budget`,
     )
   } else if (stillOpen.length > 0) {
-    exceptions.push(
-      ...toExceptions(
-        stillOpen,
-        options.adjudicator === null || options.adjudicator === undefined
-          ? 'LLM_UNAVAILABLE'
-          : 'LOW_CONFIDENCE',
-      ),
-    )
+    // Reached only when no adjudicator exists — the branch above handles the
+    // case where one does. The condition that used to be tested here could
+    // never be false.
+    exceptions.push(...toExceptions(stillOpen, 'LLM_UNAVAILABLE'))
     emit(
       'adjudicate',
       'No adjudicator configured',

@@ -145,9 +145,9 @@ export function matchL1(
         code: 'DUPLICATE_CAPTURE',
         amountPaise: order.grossPaise,
         occurredOn: order.capturedOn,
-        rejected: lines.map((line) => ({
+        rejected: lines.map((line, position) => ({
           candidateId: line.lineId,
-          reason: `already settled against ${claimants[lines.indexOf(line)]?.orderId ?? 'an earlier order'}`,
+          reason: `already settled against ${claimants[position]?.orderId ?? 'an earlier order'}`,
           deltaPaise: 0,
           dayGap: 0,
           score: 0,
@@ -159,10 +159,19 @@ export function matchL1(
   }
 
   // Orders whose reference the gateway never reported at all.
+  //
+  // Set membership, not a scan. The linear search this replaced ran once per
+  // order against every match already made — quadratic, and a measurable share
+  // of the wall clock the scorecard reports at four thousand orders. Throughput
+  // is one of the numbers this project asks to be believed on, so it should not
+  // be spent here.
+  const settled = new Set(matches.map((m) => m.leftId))
+  const flagged = new Set(exceptions.map((e) => e.recordId))
+
   for (const order of orders) {
     if (!order.paymentRef) continue
-    if (matches.some((m) => m.leftId === order.orderId)) continue
-    if (exceptions.some((e) => e.recordId === order.orderId)) continue
+    if (settled.has(order.orderId)) continue
+    if (flagged.has(order.orderId)) continue
 
     exceptions.push({
       exceptionId: `EXC-${order.orderId}`,
